@@ -15,9 +15,11 @@ async function initialize() {
 
         renderTicketTable(tickets);
 
-        console.log("Ticket List", tickets);
+        updateDashboard(tickets);
 
-    } catch (error) {
+        console.log(tickets);
+
+    } catch(error){
 
         console.error(error);
 
