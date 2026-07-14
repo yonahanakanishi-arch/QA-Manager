@@ -105,6 +105,53 @@
     </section>
   </div>
 
+  <div id="detailModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle" hidden>
+    <div class="modal-backdrop" data-close-detail></div>
+    <section class="modal-dialog modal-dialog-wide">
+      <div class="modal-header">
+        <div><p class="eyebrow" id="detailTicketId">Ticket</p><h2 id="detailModalTitle">案件詳細・更新</h2></div>
+        <button class="icon-button" type="button" data-close-detail aria-label="閉じる">×</button>
+      </div>
+      <form id="detailForm">
+        <input name="案件ID" id="detailId" type="hidden">
+        <div class="detail-section"><h3>基本情報</h3>
+          <dl class="record-summary">
+            <div><dt>受付日</dt><dd id="detailReceivedDate">—</dd></div><div><dt>登録者</dt><dd id="detailCreator">—</dd></div>
+            <div><dt>登録日時</dt><dd id="detailCreatedAt">—</dd></div><div><dt>最終更新</dt><dd id="detailUpdatedAt">—</dd></div>
+          </dl>
+          <div class="form-grid">
+            <label class="field">対象システム <select name="システム" id="detailSystem" required></select></label>
+            <label class="field">ベンダー <select name="ベンダー" id="detailVendor" required></select></label>
+            <label class="field">担当者 <select name="担当者" id="detailOwner" required></select></label>
+            <label class="field">優先度 <select name="優先度" id="detailPriority" required></select></label>
+            <label class="field">状態 <select name="状態" id="detailStatus" required></select></label>
+            <label class="field">問い合わせ区分 <select name="問い合わせ区分" id="detailCategory" required></select></label>
+            <label class="field">送付日 <input name="送付日" id="detailSentDate" type="date"></label>
+            <label class="field">最終催促日 <input name="最終催促日" id="detailFollowupDate" type="date"></label>
+            <label class="field">回答期限 <input name="回答期限" id="detailDueDate" type="date"></label>
+            <label class="field">回答予定日 <input name="回答予定日" id="detailPlannedDate" type="date"></label>
+            <label class="field">回答日 <input name="回答日" id="detailAnswerDate" type="date"></label>
+            <label class="field">ベンダー管理番号 <input name="ベンダー管理番号" id="detailVendorCase" maxlength="100"></label>
+            <label class="field">問い合わせ元部署 <input name="問い合わせ元部署" id="detailDepartment" maxlength="100"></label>
+            <label class="field">問い合わせ元担当者 <input name="問い合わせ元担当者" id="detailRequester" maxlength="100"></label>
+            <label class="field span-2">件名 <input name="件名" id="detailSubject" maxlength="200" required></label>
+            <label class="field span-2">問い合わせ内容 <textarea name="問い合わせ内容" id="detailInquiry" rows="5" required></textarea></label>
+          </div>
+        </div>
+        <div class="detail-section"><h3>回答・完了</h3>
+          <div class="form-grid">
+            <label class="field span-2">回答内容 <textarea name="回答内容" id="detailAnswer" rows="6"></textarea></label>
+            <label class="field">完了理由 <input name="完了理由" id="detailCompletionReason" maxlength="200"></label>
+            <label class="checkbox-field"><input type="checkbox" name="ナレッジ対象" id="detailKnowledge"> ナレッジ対象として残す</label>
+            <label class="field span-2">備考 <textarea name="備考" id="detailNotes" rows="3"></textarea></label>
+          </div>
+        </div>
+        <div class="detail-section history-section"><h3>履歴</h3><ol id="historyList" class="history-list"><li>読み込み中…</li></ol></div>
+        <div class="modal-actions"><button class="button secondary" type="button" data-close-detail>閉じる</button><button id="saveTicket" class="button primary" type="submit">変更を保存</button></div>
+      </form>
+    </section>
+  </div>
+
   <div id="loading" class="loading" role="status" aria-live="polite" hidden><span></span>読み込み中…</div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
