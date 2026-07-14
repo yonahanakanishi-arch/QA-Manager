@@ -13,9 +13,9 @@ async function initialize() {
 
         const tickets = await API.getList();
 
-        console.log("Ticket List", tickets);
+        renderTicketTable(tickets);
 
-        alert(`案件数：${tickets.length}件`);
+        console.log("Ticket List", tickets);
 
     } catch (error) {
 
