@@ -12,5 +12,15 @@ window.API = {
   },
   async getList(force = false) { if (!force && this.cache.tickets) return this.cache.tickets; const result = await this.request('list'); this.cache.tickets = Array.isArray(result) ? result : []; return this.cache.tickets; },
   async getMasters() { if (this.cache.masters) return this.cache.masters; this.cache.masters = await this.request('masters'); return this.cache.masters; },
-  async getDetail(id) { return this.request('detail', { id }); }
+  async getDetail(id) { return this.request('detail', { id }); },
+  async create(ticket) {
+    const response = await fetch(this.baseUrl, {
+      method: 'POST',
+      /* text/plain avoids an unnecessary CORS preflight request to Apps Script. */
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'create', ...ticket })
+    });
+    if (!response.ok) throw new Error(`登録に失敗しました（${response.status}）`);
+    return response.json();
+  }
 };

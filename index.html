@@ -76,6 +76,35 @@
     </main>
   </div>
 
+  <div id="ticketModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="ticketModalTitle" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-dialog">
+      <div class="modal-header">
+        <div><p class="eyebrow">New ticket</p><h2 id="ticketModalTitle">新規案件登録</h2></div>
+        <button class="icon-button" type="button" data-close-modal aria-label="閉じる">×</button>
+      </div>
+      <form id="ticketForm">
+        <div class="form-grid">
+          <label class="field">対象システム <select name="システム" id="ticketSystem" required></select></label>
+          <label class="field">ベンダー <select name="ベンダー" id="ticketVendor" required></select></label>
+          <label class="field">担当者 <select name="担当者" id="ticketOwner" required></select></label>
+          <label class="field">優先度 <select name="優先度" id="ticketPriority" required></select></label>
+          <label class="field">問い合わせ区分 <select name="問い合わせ区分" id="ticketCategory" required></select></label>
+          <label class="field">回答期限 <input name="回答期限" type="date"></label>
+          <label class="field">問い合わせ元部署 <input name="問い合わせ元部署" maxlength="100" placeholder="例：薬剤部"></label>
+          <label class="field">問い合わせ元担当者 <input name="問い合わせ元担当者" maxlength="100" placeholder="例：山田 太郎"></label>
+          <label class="field span-2">件名 <input name="件名" maxlength="200" required placeholder="問い合わせの要点を入力"></label>
+          <label class="field span-2">問い合わせ内容 <textarea name="問い合わせ内容" rows="7" required placeholder="発生状況、確認したいこと、必要な背景を入力"></textarea></label>
+        </div>
+        <p class="required-note">* は必須項目です。案件ID・受付日・状態は自動設定されます。</p>
+        <div class="modal-actions">
+          <button class="button secondary" type="button" data-close-modal>キャンセル</button>
+          <button id="submitTicket" class="button primary" type="submit">登録する</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div id="loading" class="loading" role="status" aria-live="polite" hidden><span></span>読み込み中…</div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
