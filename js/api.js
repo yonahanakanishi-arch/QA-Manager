@@ -1,94 +1,16 @@
-/**
- * QA Manager API Client
- * Version 1.0
- */
-
-const API = {
-
-    baseUrl: "https://script.google.com/macros/s/AKfycbwNHjhhyErsEjE0teJ3jMEzsWUUpTp3dMd4ZxzSotZz0Z7j05-DdlrZwbDnqOJATKt9/exec",
-
-    async getList() {
-
-        const response = await fetch(
-            `${this.baseUrl}?action=list`
-        );
-
-        if (!response.ok) {
-            throw new Error("一覧取得に失敗しました。");
-        }
-
-        return await response.json();
-
-    },
-
-    async getDetail(ticketId) {
-
-        const response = await fetch(
-            `${this.baseUrl}?action=detail&id=${encodeURIComponent(ticketId)}`
-        );
-
-        if (!response.ok) {
-            throw new Error("案件取得に失敗しました。");
-        }
-
-        return await response.json();
-
-    },
-
-    async getMasters() {
-
-        const response = await fetch(
-            `${this.baseUrl}?action=masters`
-        );
-
-        if (!response.ok) {
-            throw new Error("マスタ取得に失敗しました。");
-        }
-
-        return await response.json();
-
-    },
-
-    async create(data) {
-
-        const response = await fetch(this.baseUrl, {
-
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                action: "create",
-                ...data
-            })
-
-        });
-
-        return await response.json();
-
-    },
-
-    async update(data) {
-
-        const response = await fetch(this.baseUrl, {
-
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                action: "update",
-                ...data
-            })
-
-        });
-
-        return await response.json();
-
-    }
-
+/* Apps Script API client. Keep this endpoint unchanged unless GAS is redeployed with a new URL. */
+window.API = {
+  baseUrl: 'https://script.google.com/macros/s/AKfycbwNHjhhyErsEjE0teJ3jMEzsWUUpTp3dMd4ZxzSotZz0Z7j05-DdlrZwbDnqOJATKt9/exec',
+  cache: { tickets: null, masters: null },
+  async request(action, params = {}) {
+    const url = new URL(this.baseUrl);
+    url.searchParams.set('action', action);
+    Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+    const response = await fetch(url.toString(), { redirect: 'follow' });
+    if (!response.ok) throw new Error(`通信に失敗しました（${response.status}）`);
+    return response.json();
+  },
+  async getList(force = false) { if (!force && this.cache.tickets) return this.cache.tickets; const result = await this.request('list'); this.cache.tickets = Array.isArray(result) ? result : []; return this.cache.tickets; },
+  async getMasters() { if (this.cache.masters) return this.cache.masters; this.cache.masters = await this.request('masters'); return this.cache.masters; },
+  async getDetail(id) { return this.request('detail', { id }); }
 };

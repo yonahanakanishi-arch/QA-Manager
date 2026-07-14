@@ -1,134 +1,87 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>QA Manager</title>
-
-    <link rel="stylesheet" href="css/variables.css">
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QA Manager | 情報システム QA管理システム</title>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
-
-<div id="app">
-
-    <!-- Header -->
-    <header class="header">
-
-        <div class="logo">
-
-            <h1>QA Manager</h1>
-            <span>Information System</span>
-
-        </div>
-
-        <div class="user-area">
-
-            <span id="loginUser">
-                中西
-            </span>
-
-        </div>
-
+  <div id="app">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Information Systems</p>
+        <h1>QA Manager</h1>
+      </div>
+      <label class="current-user">操作担当者
+        <select id="currentUser" aria-label="操作担当者"></select>
+      </label>
     </header>
 
+    <main>
+      <section class="alert-bar" id="alertBar" aria-live="polite" hidden></section>
 
-    <!-- Dashboard -->
-
-    <section class="dashboard">
-
-        <div class="card">
-            <h2 id="countOpen">0</h2>
-            <p>受付</p>
-        </div>
-
-        <div class="card">
-            <h2 id="countWaiting">0</h2>
-            <p>回答待ち</p>
-        </div>
-
-        <div class="card">
-            <h2 id="countCompleted">0</h2>
-            <p>完了</p>
-        </div>
-
-        <div class="card">
-            <h2 id="countOverdue">0</h2>
-            <p>期限超過</p>
-        </div>
-
-    </section>
-
-
-    <!-- Search -->
-
-    <section class="search-panel">
-
-        <input
-            type="text"
-            id="keyword"
-            placeholder="キーワード検索">
-
-        <button id="searchButton">
-            検索
+      <section class="dashboard" aria-label="案件の集計">
+        <button class="summary-card" type="button" data-dashboard-filter="all">
+          <span>未完了</span><strong id="countOpen">0</strong><small>件</small>
         </button>
-
-    </section>
-
-
-    <!-- Action -->
-
-    <section class="toolbar">
-
-        <button id="newTicketButton">
-            ＋ 新規登録
+        <button class="summary-card waiting" type="button" data-dashboard-filter="回答待ち">
+          <span>回答待ち</span><strong id="countWaiting">0</strong><small>件</small>
         </button>
+        <button class="summary-card completed" type="button" data-dashboard-filter="完了">
+          <span>今月完了</span><strong id="countCompleted">0</strong><small>件</small>
+        </button>
+        <button class="summary-card overdue" type="button" data-dashboard-filter="overdue">
+          <span>期限超過</span><strong id="countOverdue">0</strong><small>件</small>
+        </button>
+      </section>
 
-    </section>
+      <section class="panel search-panel" aria-labelledby="filterTitle">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Search</p><h2 id="filterTitle">検索・絞り込み</h2></div>
+          <button class="button secondary" id="clearFilters" type="button">条件をクリア</button>
+        </div>
+        <div class="filters">
+          <label class="field keyword-field">キーワード
+            <input id="keyword" type="search" placeholder="案件ID・件名・内容・回答内容を検索">
+          </label>
+          <label class="field">状態<select id="filterStatus"></select></label>
+          <label class="field">担当者<select id="filterOwner"></select></label>
+          <label class="field">システム<select id="filterSystem"></select></label>
+          <label class="field">ベンダー<select id="filterVendor"></select></label>
+          <label class="field">優先度<select id="filterPriority"></select></label>
+        </div>
+      </section>
 
+      <section class="panel list-panel" aria-labelledby="listTitle">
+        <div class="panel-heading list-heading">
+          <div><p class="eyebrow">Tickets</p><h2 id="listTitle">案件一覧 <span id="resultCount" class="result-count">0件</span></h2></div>
+          <div class="actions">
+            <button class="button secondary" id="reloadButton" type="button">再読込</button>
+            <button class="button primary" id="newTicketButton" type="button" disabled>＋ 新規登録</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table id="ticketTable">
+            <thead><tr>
+              <th>案件ID</th><th>状態</th><th>優先度</th><th>担当</th><th>システム</th>
+              <th>ベンダー</th><th>件名</th><th>回答期限</th><th>経過</th><th>更新日時</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p id="emptyMessage" class="empty-message" hidden>条件に一致する案件はありません。</p>
+      </section>
+    </main>
+  </div>
 
-    <!-- Ticket List -->
+  <div id="loading" class="loading" role="status" aria-live="polite" hidden><span></span>読み込み中…</div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-    <section class="table-area">
-
-        <table id="ticketTable">
-
-            <thead>
-
-            <tr>
-
-                <th>案件ID</th>
-                <th>状態</th>
-                <th>担当</th>
-                <th>システム</th>
-                <th>ベンダー</th>
-                <th>件名</th>
-                <th>回答期限</th>
-
-            </tr>
-
-            </thead>
-
-            <tbody>
-
-            </tbody>
-
-        </table>
-
-    </section>
-
-
-</div>
-
-
-<script src="js/utils.js"></script>
-<script src="js/api.js"></script>
-<script src="js/table.js"></script>
-<script src="js/modal.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/app.js"></script>
-
+  <script src="js/api.js"></script>
+  <script src="js/table.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

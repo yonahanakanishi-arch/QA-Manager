@@ -1,31 +1,9 @@
-/**
- * Dashboard UI
- */
-
-function updateDashboard(tickets) {
-
-    const open =
-        tickets.filter(t => t["状態"] === "受付").length;
-
-    const waiting =
-        tickets.filter(t => t["状態"] === "回答待ち").length;
-
-    const completed =
-        tickets.filter(t => t["状態"] === "完了").length;
-
-    const overdue =
-        tickets.filter(t => {
-
-            if (!t["回答期限"]) return false;
-
-            return new Date(t["回答期限"]) < new Date()
-                && t["状態"] !== "完了";
-
-        }).length;
-
-    document.getElementById("countOpen").textContent = open;
-    document.getElementById("countWaiting").textContent = waiting;
-    document.getElementById("countCompleted").textContent = completed;
-    document.getElementById("countOverdue").textContent = overdue;
-
-}
+window.UI = (() => {
+  const el = id => document.getElementById(id);
+  function populateSelect(id, values, placeholder = 'すべて') { const select = el(id); const current = select.value; select.innerHTML = `<option value="">${placeholder}</option>` + [...new Set(values.filter(Boolean))].map(v => `<option value="${String(v).replace(/"/g, '&quot;')}">${String(v)}</option>`).join(''); select.value = current; }
+  function populateFilters(masters, tickets) { populateSelect('filterStatus', masters.statuses || tickets.map(t => t['状態'])); populateSelect('filterOwner', masters.staffs || tickets.map(t => t['担当者'])); populateSelect('filterSystem', masters.systems || tickets.map(t => t['システム'])); populateSelect('filterVendor', masters.vendors || tickets.map(t => t['ベンダー'])); populateSelect('filterPriority', masters.priorities || tickets.map(t => t['優先度'])); populateSelect('currentUser', masters.staffs || [], '担当者を選択'); }
+  function updateDashboard(tickets) { const open = tickets.filter(t => !['完了'].includes(t['状態'])).length; const waiting = tickets.filter(t => t['状態'] === '回答待ち').length; const completed = tickets.filter(t => { if (t['状態'] !== '完了') return false; const d = new Date(t['回答日'] || t['更新日時']); const now = new Date(); return !Number.isNaN(d) && d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth(); }).length; const overdue = tickets.filter(TableView.isOverdue).length; el('countOpen').textContent=open; el('countWaiting').textContent=waiting; el('countCompleted').textContent=completed; el('countOverdue').textContent=overdue; const bar=el('alertBar'); bar.hidden=overdue===0; if(overdue) bar.textContent=`回答期限を超過している未完了案件が ${overdue} 件あります。`; }
+  function setLoading(isLoading) { el('loading').hidden = !isLoading; }
+  function showToast(message, error=false) { const toast=el('toast'); toast.textContent=message; toast.classList.toggle('error',error); toast.hidden=false; clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>toast.hidden=true, 4500); }
+  return { populateFilters, updateDashboard, setLoading, showToast };
+})();

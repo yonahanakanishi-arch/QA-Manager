@@ -1,30 +1,12 @@
-/**
- * QA Manager
- * Application Entry Point
- */
-
-document.addEventListener("DOMContentLoaded", initialize);
-
-async function initialize() {
-
-    console.log("QA Manager started.");
-
-    try {
-
-        const tickets = await API.getList();
-
-        renderTicketTable(tickets);
-
-        updateDashboard(tickets);
-
-        console.log(tickets);
-
-    } catch(error){
-
-        console.error(error);
-
-        alert("サーバーへ接続できませんでした。");
-
-    }
-
-}
+window.QAApp = (() => {
+  const state = { tickets: [], masters: {}, dashboardFilter: 'all' };
+  const filterIds = ['keyword','filterStatus','filterOwner','filterSystem','filterVendor','filterPriority'];
+  const value = id => document.getElementById(id).value.trim();
+  function matches(ticket) { const term=value('keyword').toLocaleLowerCase(); const searchable=['案件ID','件名','問い合わせ内容','回答内容','ベンダー管理番号'].map(k=>String(ticket[k]||'')).join(' ').toLocaleLowerCase(); if(term && !searchable.includes(term)) return false; const conditions=[['状態','filterStatus'],['担当者','filterOwner'],['システム','filterSystem'],['ベンダー','filterVendor'],['優先度','filterPriority']]; if(!conditions.every(([key,id])=>!value(id)||ticket[key]===value(id))) return false; if(state.dashboardFilter==='overdue' && !TableView.isOverdue(ticket)) return false; if(state.dashboardFilter!=='all' && state.dashboardFilter!=='overdue' && ticket['状態']!==state.dashboardFilter) return false; return true; }
+  function render() { const filtered=state.tickets.filter(matches); TableView.render(filtered); UI.updateDashboard(state.tickets); document.getElementById('resultCount').textContent=`${filtered.length}件 / 全${state.tickets.length}件`; document.querySelectorAll('[data-dashboard-filter]').forEach(button=>button.classList.toggle('active',button.dataset.dashboardFilter===state.dashboardFilter)); }
+  async function load(force=false) { UI.setLoading(true); try { const [tickets,masters]=await Promise.all([API.getList(force),API.getMasters()]); state.tickets=tickets; state.masters=masters; UI.populateFilters(masters,tickets); render(); } catch(error) { console.error(error); UI.showToast(`データを読み込めませんでした。${error.message}`,true); } finally { UI.setLoading(false); } }
+  function clearFilters() { filterIds.forEach(id=>document.getElementById(id).value=''); state.dashboardFilter='all'; render(); }
+  function bindEvents() { filterIds.forEach(id=>document.getElementById(id).addEventListener(id==='keyword'?'input':'change',()=>{state.dashboardFilter='all'; render();})); document.getElementById('clearFilters').addEventListener('click',clearFilters); document.getElementById('reloadButton').addEventListener('click',()=>load(true)); document.querySelectorAll('[data-dashboard-filter]').forEach(button=>button.addEventListener('click',()=>{state.dashboardFilter=button.dataset.dashboardFilter; render();})); document.getElementById('newTicketButton').addEventListener('click',()=>UI.showToast('新規登録は Sprint 4 で実装します。')); document.querySelector('#ticketTable tbody').addEventListener('click',event=>{const row=event.target.closest('tr[data-ticket-id]'); if(row) UI.showToast(`${row.dataset.ticketId} の詳細・編集は Sprint 5 で実装します。`);}); }
+  document.addEventListener('DOMContentLoaded',()=>{bindEvents(); load();});
+  return { state, load, render };
+})();
