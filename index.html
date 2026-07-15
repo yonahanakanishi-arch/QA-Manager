@@ -37,89 +37,22 @@
         </button>
       </section>
 
-      <section class="search-panel">
-
-    <div class="search-row">
-
-        <div class="search-item">
-            <label>キーワード</label>
-            <input
-                type="text"
-                id="keyword"
-                placeholder="案件ID・件名・問い合わせ内容"
-            >
+      <section class="panel search-panel" aria-labelledby="filterTitle">
+        <div class="panel-heading">
+          <div><p class="eyebrow">Search</p><h2 id="filterTitle">検索・絞り込み</h2></div>
+          <button class="button secondary" id="clearFilters" type="button">条件をクリア</button>
         </div>
-
-    </div>
-
-    <div class="search-row">
-
-        <div class="search-item">
-
-            <label>状態</label>
-
-            <select id="statusFilter">
-                <option value="">すべて</option>
-            </select>
-
+        <div class="filters">
+          <label class="field keyword-field">キーワード
+            <input id="keyword" type="search" placeholder="案件ID・件名・内容・回答内容を検索">
+          </label>
+          <label class="field">状態<select id="filterStatus"></select></label>
+          <label class="field">担当者<select id="filterOwner"></select></label>
+          <label class="field">システム<select id="filterSystem"></select></label>
+          <label class="field">ベンダー<select id="filterVendor"></select></label>
+          <label class="field">優先度<select id="filterPriority"></select></label>
         </div>
-
-        <div class="search-item">
-
-            <label>担当</label>
-
-            <select id="staffFilter">
-                <option value="">すべて</option>
-            </select>
-
-        </div>
-
-        <div class="search-item">
-
-            <label>システム</label>
-
-            <select id="systemFilter">
-                <option value="">すべて</option>
-            </select>
-
-        </div>
-
-        <div class="search-item">
-
-            <label>ベンダー</label>
-
-            <select id="vendorFilter">
-                <option value="">すべて</option>
-            </select>
-
-        </div>
-
-    </div>
-
-    <div class="search-buttons">
-
-        <button id="searchButton">
-            検索
-        </button>
-
-        <button
-            id="clearButton"
-            class="secondary"
-        >
-            クリア
-        </button>
-
-    </div>
-
-</section>
-
-<div class="table-info">
-
-    <span id="recordCount">
-        全0件
-    </span>
-
-</div>
+      </section>
 
       <section class="panel list-panel" aria-labelledby="listTitle">
         <div class="panel-heading list-heading">
