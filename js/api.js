@@ -40,5 +40,6 @@ window.API = {
   },
 
   async create(ticket) { return this.post('create', ticket); },
-  async update(ticket) { return this.post('update', ticket); }
+  async update(ticket) { return this.post('update', ticket); },
+  async remove(ticketId, user) { return this.post('delete', { '案件ID': ticketId, '更新者': user }); }
 };

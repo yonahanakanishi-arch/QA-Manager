@@ -4,6 +4,7 @@ button, input, select { font: inherit; }
 #app { max-width: 1500px; margin: 0 auto; padding: 24px; }
 .app-header { display:flex; align-items:center; justify-content:space-between; gap:24px; margin-bottom:20px; }
 h1,h2,p { margin:0; } h1 { font-size:28px; letter-spacing:.02em; } h2 { font-size:19px; }
+.version-label { display:inline-block; margin-left:7px; padding:2px 7px; border-radius:99px; background:#e6eef8; color:#52677f; font-size:11px; font-weight:700; vertical-align:middle; }
 .eyebrow { color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
 .current-user, .field { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:700; }
 select,input { min-height:38px; border:1px solid var(--border); border-radius:7px; background:#fff; padding:7px 10px; color:var(--text); }
@@ -19,6 +20,7 @@ textarea:focus { outline:3px solid #cfe3fc; border-color:var(--primary); }
 .panel-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:15px; }.list-heading { align-items:flex-end; }
 .filters { display:grid; grid-template-columns:2fr repeat(5, minmax(110px,1fr)); gap:12px; }.keyword-field { min-width:200px; }
 .actions { display:flex; gap:8px; }.button { min-height:38px; border:0; border-radius:7px; padding:7px 13px; cursor:pointer; font-weight:700; }.button:disabled { cursor:not-allowed; opacity:.55; }.primary { background:var(--primary); color:#fff; }.primary:hover:not(:disabled) { background:var(--primary-dark); }.secondary { background:#edf2f8; color:#344054; }.secondary:hover { background:#dfe8f3; }
+.danger { background:#b42318; color:#fff; }.danger:hover:not(:disabled) { background:#8f1e15; }.modal-actions-spacer { flex:1; }
 .table-scroll { overflow:auto; border:1px solid var(--border); border-radius:8px; } table { width:100%; border-collapse:collapse; min-width:1060px; } th,td { padding:10px 12px; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; } th { background:#eef4fb; font-size:12px; color:#475467; } tbody tr { cursor:pointer; } tbody tr:hover { background:#f4f8fd; } tbody tr.overdue-row { background:#fff3f3; } td.subject { max-width:290px; overflow:hidden; text-overflow:ellipsis; }.badge { border-radius:99px; padding:3px 8px; font-size:12px; font-weight:700; }.status-受付 { background:#e8f1ff; color:#1557a0; }.status-回答待ち { background:#fff0d6; color:#8a4b00; }.status-回答あり { background:#e3f5eb; color:#12623a; }.status-完了 { background:#edf0f4; color:#4a5565; }.status-保留 { background:#f1eaff; color:#6636a0; }.priority-high { color:var(--danger); font-weight:700; }.priority-medium { color:var(--warning); font-weight:700; }.priority-low { color:var(--muted); }
 .result-count { color:var(--muted); font-size:14px; font-weight:400; }.empty-message { text-align:center; color:var(--muted); padding:24px 0 6px; }.alert-bar { margin:0 0 16px; padding:10px 14px; background:#fff3f3; color:#8f1e1e; border:1px solid #f3c5c5; border-radius:8px; font-weight:700; }
 .alert-bar.error-alert { background:#fff3f3; color:#8f1e1e; border-color:#f3c5c5; }
