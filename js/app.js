@@ -2,6 +2,7 @@ window.QAApp = (() => {
   const state = { tickets: [], masters: {}, dashboardFilter: 'all' };
   const filterIds = ['keyword', 'filterStatus', 'filterOwner', 'filterSystem', 'filterVendor', 'filterPriority'];
   const value = id => document.getElementById(id).value.trim();
+  const csvColumns = ['案件ID', '受付日', '送付日', '最終催促日', '回答日', '状態', '優先度', '担当者', 'システム', 'ベンダー', 'ベンダー管理番号', '問い合わせ元部署', '問い合わせ元担当者', '件名', '問い合わせ内容', '回答内容', '回答期限', '回答予定日', 'ナレッジ対象', '完了理由', '備考', '登録者', '登録日時', '更新日時', '問い合わせ区分', '削除フラグ'];
   const optionHtml = (values, placeholder) => '<option value="">' + placeholder + '</option>' + [...new Set((values || []).filter(Boolean))].map(item => '<option value="' + String(item).replace(/"/g, '&quot;') + '">' + String(item) + '</option>').join('');
   const toInputDate = value => { if (!value) return ''; const date = new Date(value); return Number.isNaN(date.valueOf()) ? '' : date.toISOString().slice(0, 10); };
   const displayDate = value => { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.valueOf()) ? value : date.toLocaleString('ja-JP'); };
@@ -23,6 +24,33 @@ window.QAApp = (() => {
     UI.updateDashboard(state.tickets);
     document.getElementById('resultCount').textContent = filtered.length + '件 / 全' + state.tickets.length + '件';
     document.querySelectorAll('[data-dashboard-filter]').forEach(button => button.classList.toggle('active', button.dataset.dashboardFilter === state.dashboardFilter));
+  }
+
+  function filteredTickets() { return state.tickets.filter(matches); }
+
+  function csvValue(value) {
+    if (value === null || value === undefined) return '';
+    if (value instanceof Date) return value.toLocaleString('ja-JP');
+    const text = String(value);
+    return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+  }
+
+  function downloadCsv() {
+    const tickets = filteredTickets();
+    if (!tickets.length) { UI.showToast('出力する案件がありません。', true); return; }
+    const lines = [csvColumns.map(csvValue).join(',')];
+    tickets.forEach(ticket => lines.push(csvColumns.map(column => csvValue(ticket[column])).join(',')));
+    /* BOM makes the Japanese text display correctly when opened with Excel on Windows. */
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'QA案件一覧_' + timestamp + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+    UI.showToast(tickets.length + '件をCSV出力しました。');
   }
 
   function populateTicketForm() {
@@ -99,7 +127,7 @@ window.QAApp = (() => {
 
   function bindEvents() {
     filterIds.forEach(id => document.getElementById(id).addEventListener(id === 'keyword' ? 'input' : 'change', () => { state.dashboardFilter = 'all'; render(); }));
-    document.getElementById('clearFilters').addEventListener('click', clearFilters); document.getElementById('reloadButton').addEventListener('click', () => load(true));
+    document.getElementById('clearFilters').addEventListener('click', clearFilters); document.getElementById('exportCsvButton').addEventListener('click', downloadCsv); document.getElementById('reloadButton').addEventListener('click', () => load(true));
     document.querySelectorAll('[data-dashboard-filter]').forEach(button => button.addEventListener('click', () => { state.dashboardFilter = button.dataset.dashboardFilter; render(); }));
     document.getElementById('newTicketButton').addEventListener('click', openNewModal); document.querySelectorAll('[data-close-modal]').forEach(button => button.addEventListener('click', closeNewModal)); document.getElementById('ticketForm').addEventListener('submit', submitTicket);
     document.querySelectorAll('[data-close-detail]').forEach(button => button.addEventListener('click', closeDetailModal)); document.getElementById('detailForm').addEventListener('submit', saveDetail);
@@ -107,5 +135,5 @@ window.QAApp = (() => {
   }
 
   document.addEventListener('DOMContentLoaded', () => { bindEvents(); load(); });
-  return { state, load, render };
+  return { state, load, render, downloadCsv };
 })();
