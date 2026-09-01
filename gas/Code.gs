@@ -23,6 +23,7 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents || '{}');
     if (data.action === 'create') return jsonOutput(createTicket(data));
     if (data.action === 'update') return jsonOutput(updateTicket(data));
+    if (data.action === 'delete') return jsonOutput(deleteTicket(data));
     return jsonOutput({ status: 'error', message: 'action not found' });
   } catch (error) {
     return jsonOutput({ status: 'error', message: error.message });
@@ -88,6 +89,22 @@ function updateTicket(data) {
   const changes = editable.filter(key => String(previous[key] || '') !== String(updated[key] || ''));
   const content = changes.length ? '更新: ' + changes.join('、') : '案件情報を確認しました';
   addHistory(data['案件ID'], '更新', content, data['更新者'] || data['担当者'] || '');
+  return { status: 'success' };
+}
+
+function deleteTicket(data) {
+  if (!data['案件ID']) throw new Error('案件IDがありません。');
+  const sheet = getSheet(SHEETS.tickets);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const rowIndex = values.slice(1).findIndex(row => String(row[0]) === String(data['案件ID']));
+  if (rowIndex === -1) return { status: 'notfound' };
+  const deleteColumn = headers.indexOf('削除フラグ');
+  if (deleteColumn === -1) throw new Error('QA案件シートに「削除フラグ」列がありません。');
+  sheet.getRange(rowIndex + 2, deleteColumn + 1).setValue(true);
+  const updatedColumn = headers.indexOf('更新日時');
+  if (updatedColumn !== -1) sheet.getRange(rowIndex + 2, updatedColumn + 1).setValue(new Date());
+  addHistory(data['案件ID'], '削除', '案件を一覧から削除しました', data['更新者'] || '');
   return { status: 'success' };
 }
 
