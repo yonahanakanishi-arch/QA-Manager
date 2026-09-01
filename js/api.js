@@ -27,6 +27,7 @@ window.API = {
 
   async getDetail(id) { return this.request('detail', { id }); },
   async getHistory(id) { return this.request('history', { id }); },
+  async getDeleted(force = false) { if (!force && this.cache.deleted) return this.cache.deleted; const result = await this.request('deleted'); this.cache.deleted = Array.isArray(result) ? result : []; return this.cache.deleted; },
 
   async post(action, ticket) {
     const response = await fetch(this.baseUrl, {
@@ -41,5 +42,7 @@ window.API = {
 
   async create(ticket) { return this.post('create', ticket); },
   async update(ticket) { return this.post('update', ticket); },
-  async remove(ticketId, user) { return this.post('delete', { '案件ID': ticketId, '更新者': user }); }
+  async remove(ticketId, user) { return this.post('delete', { '案件ID': ticketId, '更新者': user }); },
+  async restore(ticketId, user) { return this.post('restore', { '案件ID': ticketId, '更新者': user }); },
+  async followup(ticketId, user) { return this.post('followup', { '案件ID': ticketId, '更新者': user }); }
 };

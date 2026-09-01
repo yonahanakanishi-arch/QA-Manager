@@ -11,8 +11,9 @@ const SHEETS = {
 
 function doGet(e) {
   const action = (e.parameter && e.parameter.action) || '';
-  if (action === 'health') return jsonOutput({ status: 'success', version: 'Sprint 7.2', deleteSupported: true });
+  if (action === 'health') return jsonOutput({ status: 'success', version: 'Sprint 8', deleteSupported: true });
   if (action === 'list') return jsonOutput(getList());
+  if (action === 'deleted') return jsonOutput(getDeleted());
   if (action === 'masters') return jsonOutput(getMasters());
   if (action === 'detail') return jsonOutput(getDetail(e.parameter.id));
   if (action === 'history') return jsonOutput(getHistory(e.parameter.id));
@@ -25,6 +26,8 @@ function doPost(e) {
     if (data.action === 'create') return jsonOutput(createTicket(data));
     if (data.action === 'update') return jsonOutput(updateTicket(data));
     if (data.action === 'delete') return jsonOutput(deleteTicket(data));
+    if (data.action === 'restore') return jsonOutput(restoreTicket(data));
+    if (data.action === 'followup') return jsonOutput(recordFollowup(data));
     return jsonOutput({ status: 'error', message: 'action not found' });
   } catch (error) {
     return jsonOutput({ status: 'error', message: error.message });
@@ -35,8 +38,12 @@ function getList() {
   return sheetRecords(SHEETS.tickets).filter(record => !isTrue(record['削除フラグ']));
 }
 
+function getDeleted() {
+  return sheetRecords(SHEETS.tickets).filter(record => isTrue(record['削除フラグ']));
+}
+
 function getDetail(ticketId) {
-  return sheetRecords(SHEETS.tickets).find(record => record['案件ID'] === ticketId && !isTrue(record['削除フラグ'])) || { status: 'notfound' };
+  return sheetRecords(SHEETS.tickets).find(record => record['案件ID'] === ticketId) || { status: 'notfound' };
 }
 
 function getHistory(ticketId) {
@@ -108,6 +115,37 @@ function deleteTicket(data) {
   if (updatedColumn !== -1) sheet.getRange(rowIndex + 2, updatedColumn + 1).setValue(new Date());
   addHistory(data['案件ID'], '削除', '案件を一覧から削除しました', data['更新者'] || '');
   return { status: 'success' };
+}
+
+function restoreTicket(data) {
+  const target = findTicketRow(data['案件ID']);
+  if (!target) return { status: 'notfound' };
+  const deleteColumn = target.headers.indexOf('削除フラグ');
+  if (deleteColumn === -1) throw new Error('QA案件シートに「削除フラグ」列がありません。');
+  target.sheet.getRange(target.row, deleteColumn + 1).setValue(false);
+  addHistory(data['案件ID'], '復元', '案件を通常一覧へ復元しました', data['更新者'] || '');
+  return { status: 'success' };
+}
+
+function recordFollowup(data) {
+  const target = findTicketRow(data['案件ID']);
+  if (!target) return { status: 'notfound' };
+  const followupColumn = target.headers.indexOf('最終催促日');
+  if (followupColumn === -1) throw new Error('QA案件シートに「最終催促日」列がありません。');
+  target.sheet.getRange(target.row, followupColumn + 1).setValue(new Date());
+  const updatedColumn = target.headers.indexOf('更新日時');
+  if (updatedColumn !== -1) target.sheet.getRange(target.row, updatedColumn + 1).setValue(new Date());
+  addHistory(data['案件ID'], '催促', 'ベンダーへ催促を実施しました', data['更新者'] || '');
+  return { status: 'success' };
+}
+
+function findTicketRow(ticketId) {
+  if (!ticketId) throw new Error('案件IDがありません。');
+  const sheet = getSheet(SHEETS.tickets);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const index = values.slice(1).findIndex(row => String(row[0]) === String(ticketId));
+  return index === -1 ? null : { sheet: sheet, headers: headers, row: index + 2 };
 }
 
 function getNextTicketId() {

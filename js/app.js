@@ -1,167 +1,57 @@
 window.QAApp = (() => {
-  const state = { tickets: [], masters: {}, dashboardFilter: 'all' };
+  const state = { tickets: [], masters: {}, dashboardFilter: 'all', knowledgeOnly: false, view: 'active' };
   const filterIds = ['keyword', 'filterStatus', 'filterOwner', 'filterSystem', 'filterVendor', 'filterPriority'];
+  const csvColumns = ['案件ID','受付日','送付日','最終催促日','回答日','状態','優先度','担当者','システム','ベンダー','ベンダー管理番号','問い合わせ元部署','問い合わせ元担当者','件名','問い合わせ内容','回答内容','回答期限','回答予定日','ナレッジ対象','完了理由','備考','登録者','登録日時','更新日時','問い合わせ区分','削除フラグ'];
   const value = id => document.getElementById(id).value.trim();
-  const csvColumns = ['案件ID', '受付日', '送付日', '最終催促日', '回答日', '状態', '優先度', '担当者', 'システム', 'ベンダー', 'ベンダー管理番号', '問い合わせ元部署', '問い合わせ元担当者', '件名', '問い合わせ内容', '回答内容', '回答期限', '回答予定日', 'ナレッジ対象', '完了理由', '備考', '登録者', '登録日時', '更新日時', '問い合わせ区分', '削除フラグ'];
   const optionHtml = (values, placeholder) => '<option value="">' + placeholder + '</option>' + [...new Set((values || []).filter(Boolean))].map(item => '<option value="' + String(item).replace(/"/g, '&quot;') + '">' + String(item) + '</option>').join('');
-  const toInputDate = value => { if (!value) return ''; const date = new Date(value); return Number.isNaN(date.valueOf()) ? '' : date.toISOString().slice(0, 10); };
+  const isTrue = value => value === true || value === 1 || String(value).toUpperCase() === 'TRUE';
+  const toInputDate = value => { if (!value) return ''; const date = new Date(value); return Number.isNaN(date.valueOf()) ? '' : date.toISOString().slice(0,10); };
   const displayDate = value => { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.valueOf()) ? value : date.toLocaleString('ja-JP'); };
 
   function matches(ticket) {
     const term = value('keyword').toLocaleLowerCase();
-    const searchable = ['案件ID', '件名', '問い合わせ内容', '回答内容', 'ベンダー管理番号'].map(k => String(ticket[k] || '')).join(' ').toLocaleLowerCase();
+    const searchable = ['案件ID','件名','問い合わせ内容','回答内容','ベンダー管理番号'].map(k => String(ticket[k] || '')).join(' ').toLocaleLowerCase();
     if (term && !searchable.includes(term)) return false;
-    const conditions = [['状態','filterStatus'], ['担当者','filterOwner'], ['システム','filterSystem'], ['ベンダー','filterVendor'], ['優先度','filterPriority']];
-    if (!conditions.every(([key, id]) => !value(id) || ticket[key] === value(id))) return false;
+    const conditions = [['状態','filterStatus'],['担当者','filterOwner'],['システム','filterSystem'],['ベンダー','filterVendor'],['優先度','filterPriority']];
+    if (!conditions.every(([key,id]) => !value(id) || ticket[key] === value(id))) return false;
+    if (state.knowledgeOnly && !isTrue(ticket['ナレッジ対象'])) return false;
     if (state.dashboardFilter === 'overdue') return TableView.isOverdue(ticket);
+    if (state.dashboardFilter === 'followup') return UI.isFollowup(ticket);
     if (state.dashboardFilter === 'open') return ticket['状態'] !== '完了';
     if (state.dashboardFilter !== 'all') return ticket['状態'] === state.dashboardFilter;
     return true;
   }
-
+  const filteredTickets = () => state.tickets.filter(matches);
   function render() {
-    const filtered = state.tickets.filter(matches);
-    TableView.render(filtered);
-    UI.updateDashboard(state.tickets);
+    const filtered = filteredTickets(); TableView.render(filtered);
+    UI.updateDashboard(state.view === 'active' ? state.tickets : []);
     document.getElementById('resultCount').textContent = filtered.length + '件 / 全' + state.tickets.length + '件';
     document.querySelectorAll('[data-dashboard-filter]').forEach(button => button.classList.toggle('active', button.dataset.dashboardFilter === state.dashboardFilter));
+    document.getElementById('knowledgeButton').textContent = 'ナレッジ検索: ' + (state.knowledgeOnly ? 'ON' : 'OFF');
+    document.getElementById('knowledgeButton').classList.toggle('active', state.knowledgeOnly);
+    document.getElementById('deletedButton').textContent = state.view === 'deleted' ? '通常一覧へ戻る' : '削除済み案件';
   }
+  function csvValue(value) { if (value === null || value === undefined) return ''; const text = String(value); return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g,'""') + '"' : text; }
+  function download(name, headers, rows) { const lines = [headers.map(csvValue).join(',')].concat(rows.map(row => row.map(csvValue).join(','))); const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href=url; link.download=name; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); }
+  function downloadCsv() { const rows = filteredTickets(); if(!rows.length) return UI.showToast('出力する案件がありません。',true); download('QA案件一覧_' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '.csv', csvColumns, rows.map(ticket => csvColumns.map(key => ticket[key]))); UI.showToast(rows.length + '件をCSV出力しました。'); }
+  function downloadMonthlyReport() { const month = value('reportMonth'); if (!month) return UI.showToast('月次集計の対象月を選択してください。',true); const rows = state.tickets.filter(ticket => toInputDate(ticket['受付日']).slice(0,7) === month); const counts = {}; rows.forEach(ticket => { const key=(ticket['システム']||'未設定')+'\u0000'+(ticket['ベンダー']||'未設定'); if(!counts[key]) counts[key]={ total:0, open:0, completed:0, overdue:0 }; const c=counts[key]; c.total++; if(ticket['状態'] !== '完了') c.open++; if(ticket['状態'] === '完了') c.completed++; if(TableView.isOverdue(ticket)) c.overdue++; }); const reportRows = Object.entries(counts).map(([key,c]) => { const [system,vendor]=key.split('\u0000'); return [month,system,vendor,c.total,c.open,c.completed,c.overdue]; }); if(!reportRows.length) return UI.showToast('選択月の受付案件はありません。',true); download('QA月次集計_' + month.replace('-','') + '.csv',['対象月','システム','ベンダー','受付件数','未完了件数','完了件数','期限超過件数'],reportRows); UI.showToast(month + ' の月次集計を出力しました。'); }
 
-  function filteredTickets() { return state.tickets.filter(matches); }
-
-  function csvValue(value) {
-    if (value === null || value === undefined) return '';
-    if (value instanceof Date) return value.toLocaleString('ja-JP');
-    const text = String(value);
-    return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
-  }
-
-  function downloadCsv() {
-    const tickets = filteredTickets();
-    if (!tickets.length) { UI.showToast('出力する案件がありません。', true); return; }
-    const lines = [csvColumns.map(csvValue).join(',')];
-    tickets.forEach(ticket => lines.push(csvColumns.map(column => csvValue(ticket[column])).join(',')));
-    /* BOM makes the Japanese text display correctly when opened with Excel on Windows. */
-    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'QA案件一覧_' + timestamp + '.csv';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(link.href);
-    UI.showToast(tickets.length + '件をCSV出力しました。');
-  }
-
-  function populateTicketForm() {
-    document.getElementById('ticketSystem').innerHTML = optionHtml(state.masters.systems, '選択してください *');
-    document.getElementById('ticketVendor').innerHTML = optionHtml(state.masters.vendors, '選択してください *');
-    document.getElementById('ticketOwner').innerHTML = optionHtml(state.masters.staffs, '選択してください *');
-    document.getElementById('ticketPriority').innerHTML = optionHtml(state.masters.priorities, '選択してください *');
-    document.getElementById('ticketCategory').innerHTML = optionHtml(state.masters.categories, '選択してください *');
-    const user = document.getElementById('currentUser').value;
-    if (user) document.getElementById('ticketOwner').value = user;
-  }
-
-  function populateDetailForm(ticket) {
-    const fields = [
-      ['detailSystem', 'systems', 'システム'], ['detailVendor', 'vendors', 'ベンダー'], ['detailOwner', 'staffs', '担当者'],
-      ['detailPriority', 'priorities', '優先度'], ['detailStatus', 'statuses', '状態'], ['detailCategory', 'categories', '問い合わせ区分']
-    ];
-    fields.forEach(([id, masterKey, ticketKey]) => { const input = document.getElementById(id); input.innerHTML = optionHtml(state.masters[masterKey], '選択してください'); input.value = ticket[ticketKey] || ''; });
-    const textFields = { detailId:'案件ID', detailSentDate:'送付日', detailFollowupDate:'最終催促日', detailDueDate:'回答期限', detailPlannedDate:'回答予定日', detailAnswerDate:'回答日', detailVendorCase:'ベンダー管理番号', detailDepartment:'問い合わせ元部署', detailRequester:'問い合わせ元担当者', detailSubject:'件名', detailInquiry:'問い合わせ内容', detailAnswer:'回答内容', detailCompletionReason:'完了理由', detailNotes:'備考' };
-    Object.entries(textFields).forEach(([id, key]) => { const input = document.getElementById(id); input.value = input.type === 'date' ? toInputDate(ticket[key]) : (ticket[key] || ''); });
-    document.getElementById('detailKnowledge').checked = ticket['ナレッジ対象'] === true || String(ticket['ナレッジ対象']).toUpperCase() === 'TRUE';
-    document.getElementById('detailTicketId').textContent = ticket['案件ID'] || 'Ticket';
-    document.getElementById('detailReceivedDate').textContent = displayDate(ticket['受付日']);
-    document.getElementById('detailCreator').textContent = ticket['登録者'] || '—';
-    document.getElementById('detailCreatedAt').textContent = displayDate(ticket['登録日時']);
-    document.getElementById('detailUpdatedAt').textContent = displayDate(ticket['更新日時']);
-  }
-
-  function renderHistory(history) {
-    const list = document.getElementById('historyList');
-    list.innerHTML = '';
-    if (!Array.isArray(history) || history.length === 0) { list.innerHTML = '<li>履歴はまだありません。</li>'; return; }
-    history.slice().sort((a, b) => new Date(b['日時']) - new Date(a['日時'])).forEach(item => {
-      const li = document.createElement('li'); const time = document.createElement('time'); time.textContent = displayDate(item['日時']); const strong = document.createElement('strong'); strong.textContent = item['種別'] || '更新'; const span = document.createElement('span'); span.textContent = (item['内容'] || '') + (item['登録者'] ? '（' + item['登録者'] + '）' : ''); li.append(time, strong, span); list.appendChild(li);
-    });
-  }
-
-  async function load(force = false) {
-    UI.setLoading(true);
-    try { const [tickets, masters] = await Promise.all([API.getList(force), API.getMasters()]); state.tickets = tickets; state.masters = masters; UI.populateFilters(masters, tickets); populateTicketForm(); document.getElementById('newTicketButton').disabled = false; render(); }
-    catch (error) { console.error(error); UI.showAlert('データを読み込めませんでした。Apps Script の公開URLとアクセス設定を確認してください。詳細: ' + error.message, true); UI.showToast('データを読み込めませんでした。' + error.message, true); }
-    finally { UI.setLoading(false); }
-  }
-
-  function clearFilters() { filterIds.forEach(id => document.getElementById(id).value = ''); state.dashboardFilter = 'all'; render(); }
-  function selectDashboardFilter(filter) {
-    /* Dashboard cards are one-click views, so stale search conditions must not hide results. */
-    filterIds.forEach(id => document.getElementById(id).value = '');
-    state.dashboardFilter = filter;
-    render();
-  }
-  function openNewModal() { populateTicketForm(); document.getElementById('ticketModal').hidden = false; document.getElementById('ticketSystem').focus(); }
-  function closeNewModal() { document.getElementById('ticketModal').hidden = true; }
-  function closeDetailModal() { document.getElementById('detailModal').hidden = true; }
-
-  async function openDetail(ticketId) {
-    UI.setLoading(true);
-    try { const [ticket, history] = await Promise.all([API.getDetail(ticketId), API.getHistory(ticketId)]); if (ticket.status === 'notfound') throw new Error('案件が見つかりません。'); populateDetailForm(ticket); renderHistory(history); document.getElementById('detailModal').hidden = false; }
-    catch (error) { console.error(error); UI.showToast('案件詳細を読み込めませんでした。' + error.message, true); }
-    finally { UI.setLoading(false); }
-  }
-
-  async function submitTicket(event) {
-    event.preventDefault(); const form = event.currentTarget; if (!form.reportValidity()) return;
-    const submit = document.getElementById('submitTicket'); const record = Object.fromEntries(new FormData(form).entries()); record.登録者 = document.getElementById('currentUser').value || record.担当者;
-    submit.disabled = true; UI.setLoading(true);
-    try { const result = await API.create(record); if (result.status !== 'success') throw new Error(result.message || '登録処理が完了しませんでした。'); form.reset(); closeNewModal(); API.cache.tickets = null; await load(true); UI.showToast((result.ticketId || '案件') + ' を登録しました。'); }
-    catch (error) { console.error(error); UI.showToast('登録できませんでした。' + error.message, true); }
-    finally { submit.disabled = false; UI.setLoading(false); }
-  }
-
-  async function saveDetail(event) {
-    event.preventDefault(); const form = event.currentTarget; if (!form.reportValidity()) return;
-    const submit = document.getElementById('saveTicket'); const record = Object.fromEntries(new FormData(form).entries()); record.ナレッジ対象 = document.getElementById('detailKnowledge').checked; record.更新者 = document.getElementById('currentUser').value || record.担当者;
-    submit.disabled = true; UI.setLoading(true);
-    try { const result = await API.update(record); if (result.status !== 'success') throw new Error(result.message || '更新処理が完了しませんでした。'); closeDetailModal(); API.cache.tickets = null; await load(true); UI.showToast(record.案件ID + ' を更新しました。'); }
-    catch (error) { console.error(error); UI.showToast('更新できませんでした。' + error.message, true); }
-    finally { submit.disabled = false; UI.setLoading(false); }
-  }
-
-  async function deleteTicket() {
-    const ticketId = document.getElementById('detailId').value;
-    if (!ticketId) return;
-    if (!window.confirm(ticketId + ' を一覧から削除します。\nスプレッドシート上の記録は保持され、後から復旧できます。\n\n削除しますか？')) return;
-    const button = document.getElementById('deleteTicket');
-    button.disabled = true; UI.setLoading(true);
-    try {
-      const user = document.getElementById('currentUser').value;
-      const result = await API.remove(ticketId, user);
-      if (result.status !== 'success') {
-        const reason = result.message || '削除処理が完了しませんでした。';
-        throw new Error(reason + ' Apps ScriptのCode.gsをSprint 7.2版へ全置換し、Webアプリを新バージョンで再デプロイしてください。');
-      }
-      closeDetailModal(); API.cache.tickets = null; await load(true); UI.showToast(ticketId + ' を一覧から削除しました。');
-    } catch (error) {
-      console.error(error); UI.showToast('削除できませんでした。' + error.message, true);
-    } finally {
-      button.disabled = false; UI.setLoading(false);
-    }
-  }
-
-  function bindEvents() {
-    filterIds.forEach(id => document.getElementById(id).addEventListener(id === 'keyword' ? 'input' : 'change', () => { state.dashboardFilter = 'all'; render(); }));
-    document.getElementById('clearFilters').addEventListener('click', clearFilters); document.getElementById('exportCsvButton').addEventListener('click', downloadCsv); document.getElementById('reloadButton').addEventListener('click', () => load(true));
-    document.querySelectorAll('[data-dashboard-filter]').forEach(button => button.addEventListener('click', () => selectDashboardFilter(button.dataset.dashboardFilter)));
-    document.getElementById('newTicketButton').addEventListener('click', openNewModal); document.querySelectorAll('[data-close-modal]').forEach(button => button.addEventListener('click', closeNewModal)); document.getElementById('ticketForm').addEventListener('submit', submitTicket);
-    document.querySelectorAll('[data-close-detail]').forEach(button => button.addEventListener('click', closeDetailModal)); document.getElementById('detailForm').addEventListener('submit', saveDetail); document.getElementById('deleteTicket').addEventListener('click', deleteTicket);
-    document.querySelector('#ticketTable tbody').addEventListener('click', event => { const row = event.target.closest('tr[data-ticket-id]'); if (row) openDetail(row.dataset.ticketId); });
-  }
-
-  document.addEventListener('DOMContentLoaded', () => { bindEvents(); load(); });
-  return { state, load, render, downloadCsv };
+  function populateTicketForm() { [['ticketSystem','systems'],['ticketVendor','vendors'],['ticketOwner','staffs'],['ticketPriority','priorities'],['ticketCategory','categories']].forEach(([id,key]) => document.getElementById(id).innerHTML=optionHtml(state.masters[key],'選択してください *')); const user=value('currentUser'); if(user) document.getElementById('ticketOwner').value=user; }
+  function populateDetailForm(ticket) { const fields=[['detailSystem','systems','システム'],['detailVendor','vendors','ベンダー'],['detailOwner','staffs','担当者'],['detailPriority','priorities','優先度'],['detailStatus','statuses','状態'],['detailCategory','categories','問い合わせ区分']]; fields.forEach(([id,master,key])=>{const input=document.getElementById(id);input.innerHTML=optionHtml(state.masters[master],'選択してください');input.value=ticket[key]||'';}); const textFields={detailId:'案件ID',detailSentDate:'送付日',detailFollowupDate:'最終催促日',detailDueDate:'回答期限',detailPlannedDate:'回答予定日',detailAnswerDate:'回答日',detailVendorCase:'ベンダー管理番号',detailDepartment:'問い合わせ元部署',detailRequester:'問い合わせ元担当者',detailSubject:'件名',detailInquiry:'問い合わせ内容',detailAnswer:'回答内容',detailCompletionReason:'完了理由',detailNotes:'備考'}; Object.entries(textFields).forEach(([id,key])=>{const input=document.getElementById(id);input.value=input.type==='date'?toInputDate(ticket[key]):(ticket[key]||'');}); document.getElementById('detailKnowledge').checked=isTrue(ticket['ナレッジ対象']); document.getElementById('detailTicketId').textContent=ticket['案件ID']||'Ticket'; document.getElementById('detailReceivedDate').textContent=displayDate(ticket['受付日']); document.getElementById('detailCreator').textContent=ticket['登録者']||'—'; document.getElementById('detailCreatedAt').textContent=displayDate(ticket['登録日時']); document.getElementById('detailUpdatedAt').textContent=displayDate(ticket['更新日時']); document.getElementById('deleteTicket').hidden=state.view==='deleted'; document.getElementById('restoreTicket').hidden=state.view!=='deleted'; }
+  function renderHistory(history) { const list=document.getElementById('historyList'); list.innerHTML=''; if(!Array.isArray(history)||!history.length){list.innerHTML='<li>履歴はまだありません。</li>';return;} history.slice().sort((a,b)=>new Date(b['日時'])-new Date(a['日時'])).forEach(item=>{const li=document.createElement('li');li.innerHTML='<time>'+displayDate(item['日時'])+'</time><strong>'+String(item['種別']||'更新')+'</strong><span>'+String(item['内容']||'')+(item['登録者']?'（'+item['登録者']+'）':'')+'</span>';list.appendChild(li);}); }
+  async function load(force=false) { UI.setLoading(true); try { const [tickets,masters]=await Promise.all([state.view==='deleted'?API.getDeleted(force):API.getList(force),API.getMasters()]); state.tickets=tickets;state.masters=masters;UI.populateFilters(masters,tickets);populateTicketForm();document.getElementById('newTicketButton').disabled=state.view==='deleted';render(); } catch(error){console.error(error);UI.showAlert('データを読み込めませんでした。詳細: '+error.message,true);UI.showToast('データを読み込めませんでした。'+error.message,true);}finally{UI.setLoading(false);} }
+  function clearFilters(){filterIds.forEach(id=>document.getElementById(id).value='');state.dashboardFilter='all';state.knowledgeOnly=false;render();}
+  function selectDashboardFilter(filter){filterIds.forEach(id=>document.getElementById(id).value='');state.knowledgeOnly=false;state.dashboardFilter=filter;render();}
+  function openNewModal(){populateTicketForm();document.getElementById('ticketModal').hidden=false;document.getElementById('ticketSystem').focus();} function closeNewModal(){document.getElementById('ticketModal').hidden=true;} function closeDetailModal(){document.getElementById('detailModal').hidden=true;} function closeTextModal(){document.getElementById('textModal').hidden=true;}
+  async function openDetail(ticketId){UI.setLoading(true);try{const [ticket,history]=await Promise.all([API.getDetail(ticketId),API.getHistory(ticketId)]);if(ticket.status==='notfound')throw new Error('案件が見つかりません。');populateDetailForm(ticket);renderHistory(history);document.getElementById('detailModal').hidden=false;}catch(error){console.error(error);UI.showToast('案件詳細を読み込めませんでした。'+error.message,true);}finally{UI.setLoading(false);}}
+  async function submitTicket(event){event.preventDefault();const form=event.currentTarget;if(!form.reportValidity())return;const button=document.getElementById('submitTicket');const record=Object.fromEntries(new FormData(form).entries());record.登録者=value('currentUser')||record.担当者;button.disabled=true;UI.setLoading(true);try{const result=await API.create(record);if(result.status!=='success')throw new Error(result.message||'登録処理が完了しませんでした。');form.reset();closeNewModal();API.cache.tickets=null;await load(true);UI.showToast((result.ticketId||'案件')+' を登録しました。');}catch(error){UI.showToast('登録できませんでした。'+error.message,true);}finally{button.disabled=false;UI.setLoading(false);}}
+  async function saveDetail(event){event.preventDefault();const form=event.currentTarget;if(!form.reportValidity())return;const button=document.getElementById('saveTicket');const record=Object.fromEntries(new FormData(form).entries());record.ナレッジ対象=document.getElementById('detailKnowledge').checked;record.更新者=value('currentUser')||record.担当者;button.disabled=true;UI.setLoading(true);try{const result=await API.update(record);if(result.status!=='success')throw new Error(result.message||'更新処理が完了しませんでした。');closeDetailModal();API.cache.tickets=null;await load(true);UI.showToast(record.案件ID+' を更新しました。');}catch(error){UI.showToast('更新できませんでした。'+error.message,true);}finally{button.disabled=false;UI.setLoading(false);}}
+  async function mutateAction(action,id,message){UI.setLoading(true);try{const result=await API[action](id,value('currentUser'));if(result.status!=='success')throw new Error(result.message||'処理に失敗しました。');closeDetailModal();API.cache.tickets=null;API.cache.deleted=null;await load(true);UI.showToast(id+' を'+message);}catch(error){console.error(error);UI.showToast('処理できませんでした。'+error.message,true);}finally{UI.setLoading(false);}}
+  function deleteTicket(){const id=value('detailId');if(id&&window.confirm(id+' を一覧から削除しますか？'))mutateAction('remove',id,'削除しました。');} function restoreTicket(){const id=value('detailId');if(id&&window.confirm(id+' を通常一覧へ復元しますか？'))mutateAction('restore',id,'復元しました。');} function recordFollowup(){const id=value('detailId');if(id&&window.confirm(id+' の催促を本日実施したものとして記録しますか？'))mutateAction('followup',id,'催促を記録しました。');}
+  function formRecord(){return Object.fromEntries(new FormData(document.getElementById('detailForm')).entries());} function showTemplate(title,text){document.getElementById('textModalTitle').textContent=title;document.getElementById('generatedText').value=text;document.getElementById('textModal').hidden=false;}
+  function generateInquiry(){const r=formRecord();showTemplate('ベンダー問い合わせ文','件名：'+(r['件名']||'')+'\n\n対象システム：'+(r['システム']||'')+'\nベンダー：'+(r['ベンダー']||'')+'\n案件ID：'+(r['案件ID']||'')+'\n\n問い合わせ内容：\n'+(r['問い合わせ内容']||'')+'\n\n回答希望日：'+(r['回答期限']||'未設定'));} function generateFollowup(){const r=formRecord();showTemplate('ベンダー催促文','件名：【回答状況確認】'+(r['件名']||'')+'\n\n'+(r['ベンダー']||'ご担当者')+' 様\n\n下記お問い合わせについて、回答状況をご確認いただけますでしょうか。\n\n案件ID：'+(r['案件ID']||'')+'\n対象システム：'+(r['システム']||'')+'\n件名：'+(r['件名']||'')+'\n送付日：'+(r['送付日']||'未記録')+'\n\nお手数をおかけしますが、よろしくお願いいたします。');}
+  async function copyTemplate(){const text=document.getElementById('generatedText').value;try{await navigator.clipboard.writeText(text);}catch(error){document.getElementById('generatedText').select();document.execCommand('copy');}UI.showToast('文面をコピーしました。');}
+  function toggleDeleted(){state.view=state.view==='active'?'deleted':'active';state.dashboardFilter='all';state.knowledgeOnly=false;filterIds.forEach(id=>document.getElementById(id).value='');load(true);} function toggleKnowledge(){if(state.view==='deleted')return UI.showToast('削除済み案件一覧では利用できません。',true);state.knowledgeOnly=!state.knowledgeOnly;state.dashboardFilter='all';render();}
+  function bindEvents(){filterIds.forEach(id=>document.getElementById(id).addEventListener(id==='keyword'?'input':'change',()=>{state.dashboardFilter='all';render();}));document.getElementById('clearFilters').addEventListener('click',clearFilters);document.getElementById('exportCsvButton').addEventListener('click',downloadCsv);document.getElementById('exportMonthlyButton').addEventListener('click',downloadMonthlyReport);document.getElementById('reloadButton').addEventListener('click',()=>load(true));document.getElementById('knowledgeButton').addEventListener('click',toggleKnowledge);document.getElementById('deletedButton').addEventListener('click',toggleDeleted);document.querySelectorAll('[data-dashboard-filter]').forEach(button=>button.addEventListener('click',()=>selectDashboardFilter(button.dataset.dashboardFilter)));document.getElementById('newTicketButton').addEventListener('click',openNewModal);document.querySelectorAll('[data-close-modal]').forEach(button=>button.addEventListener('click',closeNewModal));document.getElementById('ticketForm').addEventListener('submit',submitTicket);document.querySelectorAll('[data-close-detail]').forEach(button=>button.addEventListener('click',closeDetailModal));document.getElementById('detailForm').addEventListener('submit',saveDetail);document.getElementById('deleteTicket').addEventListener('click',deleteTicket);document.getElementById('restoreTicket').addEventListener('click',restoreTicket);document.getElementById('recordFollowup').addEventListener('click',recordFollowup);document.getElementById('generateInquiry').addEventListener('click',generateInquiry);document.getElementById('generateFollowup').addEventListener('click',generateFollowup);document.querySelectorAll('[data-close-text]').forEach(button=>button.addEventListener('click',closeTextModal));document.getElementById('copyGeneratedText').addEventListener('click',copyTemplate);document.querySelector('#ticketTable tbody').addEventListener('click',event=>{const row=event.target.closest('tr[data-ticket-id]');if(row)openDetail(row.dataset.ticketId);});}
+  document.addEventListener('DOMContentLoaded',()=>{document.getElementById('reportMonth').value=new Date().toISOString().slice(0,7);bindEvents();load();}); return { state, load, render };
 })();
