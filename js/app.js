@@ -14,6 +14,7 @@ window.QAApp = (() => {
     const conditions = [['状態','filterStatus'], ['担当者','filterOwner'], ['システム','filterSystem'], ['ベンダー','filterVendor'], ['優先度','filterPriority']];
     if (!conditions.every(([key, id]) => !value(id) || ticket[key] === value(id))) return false;
     if (state.dashboardFilter === 'overdue' && !TableView.isOverdue(ticket)) return false;
+    if (state.dashboardFilter === 'open' && ticket['状態'] === '完了') return false;
     if (state.dashboardFilter !== 'all' && state.dashboardFilter !== 'overdue' && ticket['状態'] !== state.dashboardFilter) return false;
     return true;
   }
@@ -125,12 +126,30 @@ window.QAApp = (() => {
     finally { submit.disabled = false; UI.setLoading(false); }
   }
 
+  async function deleteTicket() {
+    const ticketId = document.getElementById('detailId').value;
+    if (!ticketId) return;
+    if (!window.confirm(ticketId + ' を一覧から削除します。\nスプレッドシート上の記録は保持され、後から復旧できます。\n\n削除しますか？')) return;
+    const button = document.getElementById('deleteTicket');
+    button.disabled = true; UI.setLoading(true);
+    try {
+      const user = document.getElementById('currentUser').value;
+      const result = await API.remove(ticketId, user);
+      if (result.status !== 'success') throw new Error(result.message || '削除処理が完了しませんでした。');
+      closeDetailModal(); API.cache.tickets = null; await load(true); UI.showToast(ticketId + ' を一覧から削除しました。');
+    } catch (error) {
+      console.error(error); UI.showToast('削除できませんでした。' + error.message, true);
+    } finally {
+      button.disabled = false; UI.setLoading(false);
+    }
+  }
+
   function bindEvents() {
     filterIds.forEach(id => document.getElementById(id).addEventListener(id === 'keyword' ? 'input' : 'change', () => { state.dashboardFilter = 'all'; render(); }));
     document.getElementById('clearFilters').addEventListener('click', clearFilters); document.getElementById('exportCsvButton').addEventListener('click', downloadCsv); document.getElementById('reloadButton').addEventListener('click', () => load(true));
     document.querySelectorAll('[data-dashboard-filter]').forEach(button => button.addEventListener('click', () => { state.dashboardFilter = button.dataset.dashboardFilter; render(); }));
     document.getElementById('newTicketButton').addEventListener('click', openNewModal); document.querySelectorAll('[data-close-modal]').forEach(button => button.addEventListener('click', closeNewModal)); document.getElementById('ticketForm').addEventListener('submit', submitTicket);
-    document.querySelectorAll('[data-close-detail]').forEach(button => button.addEventListener('click', closeDetailModal)); document.getElementById('detailForm').addEventListener('submit', saveDetail);
+    document.querySelectorAll('[data-close-detail]').forEach(button => button.addEventListener('click', closeDetailModal)); document.getElementById('detailForm').addEventListener('submit', saveDetail); document.getElementById('deleteTicket').addEventListener('click', deleteTicket);
     document.querySelector('#ticketTable tbody').addEventListener('click', event => { const row = event.target.closest('tr[data-ticket-id]'); if (row) openDetail(row.dataset.ticketId); });
   }
 
