@@ -11,6 +11,7 @@ const SHEETS = {
 
 function doGet(e) {
   const action = (e.parameter && e.parameter.action) || '';
+  if (action === 'health') return jsonOutput({ status: 'success', version: 'Sprint 7.2', deleteSupported: true });
   if (action === 'list') return jsonOutput(getList());
   if (action === 'masters') return jsonOutput(getMasters());
   if (action === 'detail') return jsonOutput(getDetail(e.parameter.id));
@@ -101,6 +102,7 @@ function deleteTicket(data) {
   if (rowIndex === -1) return { status: 'notfound' };
   const deleteColumn = headers.indexOf('削除フラグ');
   if (deleteColumn === -1) throw new Error('QA案件シートに「削除フラグ」列がありません。');
+  if (isTrue(values[rowIndex + 1][deleteColumn])) return { status: 'success', message: 'すでに削除済みです。' };
   sheet.getRange(rowIndex + 2, deleteColumn + 1).setValue(true);
   const updatedColumn = headers.indexOf('更新日時');
   if (updatedColumn !== -1) sheet.getRange(rowIndex + 2, updatedColumn + 1).setValue(new Date());

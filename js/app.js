@@ -13,9 +13,9 @@ window.QAApp = (() => {
     if (term && !searchable.includes(term)) return false;
     const conditions = [['状態','filterStatus'], ['担当者','filterOwner'], ['システム','filterSystem'], ['ベンダー','filterVendor'], ['優先度','filterPriority']];
     if (!conditions.every(([key, id]) => !value(id) || ticket[key] === value(id))) return false;
-    if (state.dashboardFilter === 'overdue' && !TableView.isOverdue(ticket)) return false;
-    if (state.dashboardFilter === 'open' && ticket['状態'] === '完了') return false;
-    if (state.dashboardFilter !== 'all' && state.dashboardFilter !== 'overdue' && ticket['状態'] !== state.dashboardFilter) return false;
+    if (state.dashboardFilter === 'overdue') return TableView.isOverdue(ticket);
+    if (state.dashboardFilter === 'open') return ticket['状態'] !== '完了';
+    if (state.dashboardFilter !== 'all') return ticket['状態'] === state.dashboardFilter;
     return true;
   }
 
@@ -97,6 +97,12 @@ window.QAApp = (() => {
   }
 
   function clearFilters() { filterIds.forEach(id => document.getElementById(id).value = ''); state.dashboardFilter = 'all'; render(); }
+  function selectDashboardFilter(filter) {
+    /* Dashboard cards are one-click views, so stale search conditions must not hide results. */
+    filterIds.forEach(id => document.getElementById(id).value = '');
+    state.dashboardFilter = filter;
+    render();
+  }
   function openNewModal() { populateTicketForm(); document.getElementById('ticketModal').hidden = false; document.getElementById('ticketSystem').focus(); }
   function closeNewModal() { document.getElementById('ticketModal').hidden = true; }
   function closeDetailModal() { document.getElementById('detailModal').hidden = true; }
@@ -135,7 +141,10 @@ window.QAApp = (() => {
     try {
       const user = document.getElementById('currentUser').value;
       const result = await API.remove(ticketId, user);
-      if (result.status !== 'success') throw new Error(result.message || '削除処理が完了しませんでした。');
+      if (result.status !== 'success') {
+        const reason = result.message || '削除処理が完了しませんでした。';
+        throw new Error(reason + ' Apps ScriptのCode.gsをSprint 7.2版へ全置換し、Webアプリを新バージョンで再デプロイしてください。');
+      }
       closeDetailModal(); API.cache.tickets = null; await load(true); UI.showToast(ticketId + ' を一覧から削除しました。');
     } catch (error) {
       console.error(error); UI.showToast('削除できませんでした。' + error.message, true);
@@ -147,7 +156,7 @@ window.QAApp = (() => {
   function bindEvents() {
     filterIds.forEach(id => document.getElementById(id).addEventListener(id === 'keyword' ? 'input' : 'change', () => { state.dashboardFilter = 'all'; render(); }));
     document.getElementById('clearFilters').addEventListener('click', clearFilters); document.getElementById('exportCsvButton').addEventListener('click', downloadCsv); document.getElementById('reloadButton').addEventListener('click', () => load(true));
-    document.querySelectorAll('[data-dashboard-filter]').forEach(button => button.addEventListener('click', () => { state.dashboardFilter = button.dataset.dashboardFilter; render(); }));
+    document.querySelectorAll('[data-dashboard-filter]').forEach(button => button.addEventListener('click', () => selectDashboardFilter(button.dataset.dashboardFilter)));
     document.getElementById('newTicketButton').addEventListener('click', openNewModal); document.querySelectorAll('[data-close-modal]').forEach(button => button.addEventListener('click', closeNewModal)); document.getElementById('ticketForm').addEventListener('submit', submitTicket);
     document.querySelectorAll('[data-close-detail]').forEach(button => button.addEventListener('click', closeDetailModal)); document.getElementById('detailForm').addEventListener('submit', saveDetail); document.getElementById('deleteTicket').addEventListener('click', deleteTicket);
     document.querySelector('#ticketTable tbody').addEventListener('click', event => { const row = event.target.closest('tr[data-ticket-id]'); if (row) openDetail(row.dataset.ticketId); });
